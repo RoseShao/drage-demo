@@ -68,7 +68,7 @@ import Decimal from "decimal.js"
 
 // ------------------------------style---------------------------------------
 // drawer style
-const drawerProps = ref({
+const initProp = {
     drawerWidth: 500,
     drawerHeight: 300,
     drawerScale: 100,
@@ -80,7 +80,9 @@ const drawerProps = ref({
     drawerMargin: 0,
     drawerBgColor: "#fff",
     fileName:'',
-});
+}
+const drawerProps = ref();
+drawerProps.value = JSON.parse(JSON.stringify(initProp))
 const drawerContainerStyle = computed(() => {
     return {
         backgroundColor: drawerProps.value.drawerBgColor,
@@ -479,6 +481,7 @@ const drop = (e) => {
         ...showNodes.value[currentNode.value.nodeId],
         ...JSON.parse(JSON.stringify(currentNode.value)),
     };
+    recordHistory()
     nodeFocus(currentNode.value);
     drageType.value = "";
 };
@@ -520,6 +523,7 @@ const canvasMouseMove = (e) => {
     showNodes.value[currentNode.value.nodeId].height = nodeSize.height < 0 ? 0 : nodeSize.height;
 };
 const canvasMouseUp = (e) => {
+    if(drageType.value === "moveStart" || drageType.value === 'resizeStart')recordHistory()
     drageType.value = "";
     adsorbObj = {}//不可动
 };
@@ -669,28 +673,40 @@ onBeforeUnmount(() => {
     window.removeEventListener("keyup", keyUp);
 });
 // ---------------------histroy---------------------------------
-const historyList = ref([])
-const isRolling = false;
+const historyList = [
+    {
+        drawerProps:JSON.parse(JSON.stringify(initProp)),
+        showNodes:{}
+    }
+]
+let isRolling = false;
 watch(drawerProps,()=>{
+    if(isRolling){
+        isRolling = false;
+        return
+    }
     recordHistory()
-})
+},{deep:true})
 const recordHistory = () => {
     const tempObj = JSON.parse(allProps.value)
     historyList.push(tempObj);
+    console.log(historyList)
 }
 const rollBack = () => {
-    if(!(historyList instanceof Array && history.length > 0))return;
-    const lastData = historyList.pop()
+    if(!(historyList instanceof Array && historyList.length > 1))return;
     isRolling = true;
+    historyList.pop()
+    const lastData = JSON.parse(JSON.stringify(historyList[historyList.length-1]))
     drawerProps.value = lastData.drawerProps
-    nodeProps.value = lastData.nodeProps
+    showNodes.value = lastData.showNodes
+    console.log(historyList)
 }
 
 // --------------------allProps--------------------------------
 const allProps = computed(() => {
     const obj = {
         drawerProps: drawerProps.value,
-        nodeProps: showNodes.value,
+        showNodes: showNodes.value,
     };
     return JSON.stringify(obj);
 });
@@ -706,7 +722,7 @@ const handleFileChange = (event) => {
         const jsonStr = str.split(";;;")[1];
         const json = JSON.parse(jsonStr);
         drawerProps.value = json.drawerProps;
-        showNodes.value = json.nodeProps;
+        showNodes.value = json.showNodes;
     };
     reader.readAsText(file);
 };
@@ -744,19 +760,9 @@ const downLoadHTML = (htmlStr,fileName) => {
 const clearDrawer = () => {
     let confirm = window.confirm("确定要清空整个画布吗?清空后不可找回！")
     if(!confirm)return;
-    drawerProps.value = {
-        drawerWidth: 500,
-        drawerHeight: 300,
-        drawerScale: 100,
-        isBorder: true,
-        borderWidth: 1,
-        borderColor: "#000",
-        borderRadius: 0,
-        drawerPadding: 0,
-        drawerMargin: 0,
-        drawerBgColor: "#fff",
-    };
+    drawerProps.value = JSON.parse(JSON.stringify(initProp));
     showNodes.value = {};
+    fileName.value.innerText = 'drage label';
 }
 </script>
 <style scoped lang="less">
